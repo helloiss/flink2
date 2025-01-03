@@ -36,6 +36,7 @@ under the License.
 	<!-- Allow users to pass custom jcuda versions -->
 	<properties>
 		<jcuda.version>10.0.0</jcuda.version>
+		<fastjson.version>2.0.40</fastjson.version>
 	</properties>
 
 	<dependencies>
@@ -117,6 +118,18 @@ under the License.
 					<artifactId>jcublas-natives</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>fastjson</artifactId>
+			<version>${fastjson.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>redis.clients</groupId>
+			<artifactId>jedis</artifactId>
+			<version>4.3.0</version> <!-- 使用适合你的项目的最新版本 -->
 		</dependency>
 
     </dependencies>
