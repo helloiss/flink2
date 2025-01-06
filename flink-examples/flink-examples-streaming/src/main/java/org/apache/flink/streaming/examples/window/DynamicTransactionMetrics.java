@@ -1,5 +1,9 @@
 package org.apache.flink.streaming.examples.window;
 
+import com.alibaba.fastjson.JSON;
+
+import com.alibaba.fastjson2.TypeReference;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -14,6 +18,7 @@ import org.apache.flink.util.Collector;
 import com.alibaba.fastjson2.JSONObject;
 import redis.clients.jedis.Jedis;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,28 +32,53 @@ public class DynamicTransactionMetrics {
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
+        MetricConfig config = new MetricConfig(
+                "test",
+                "userId",
+                5000l,
+                "amount",
+                "SUM",
+                "RECENT",
+                10l);
+        String[] configs = new String[]{JSONObject.toJSONString(config)};
+        List<MetricConfig> metricConfigs = new ArrayList<>();
+        metricConfigs.add(config);
+
+        MetricConfigRepository.updateCache(JSON.toJSONString(metricConfigs));
         // 假设有一个配置流
-        DataStream<String> metricConfigStream = env.addSource(null);
+        DataStream<String> metricConfigStream = env.fromElements(configs);
+
+        OriginEvent[] originEvents = new OriginEvent[]{
+                new OriginEvent("user1", "device1", System.currentTimeMillis(), 100),
+                new OriginEvent("user1", "device1", System.currentTimeMillis() + 1000, 100),
+                new OriginEvent("user1", "device1", System.currentTimeMillis() + 3000, 100),
+                new OriginEvent("user1", "device1", System.currentTimeMillis() + 5000, 100),
+                new OriginEvent("user1", "device1", System.currentTimeMillis() + 8000, 100),
+                new OriginEvent("user1", "device1", System.currentTimeMillis() + 10000, 100),
+                new OriginEvent("user2", "device1", System.currentTimeMillis() + 15000, 100),
+                new OriginEvent("user2", "device1", System.currentTimeMillis() + 16000, 100)
+        };
 
         // 假设有一个用户交易事件流
-        DataStream<OriginEvent> transactionStream = env.addSource(null);
+        DataStream<OriginEvent> transactionStream = env.fromElements(originEvents);
 
-        DataStream<MetricEvent> metricEventDataStream = transactionStream.flatMap((FlatMapFunction<OriginEvent, MetricEvent>) (value, out) -> {
-            //动态加载配置
-            List<MetricConfig> metricConfigs = MetricConfigRepository.getLastedConfig();
-            for (MetricConfig metricConfig : metricConfigs) {
-                Map<String, Object> valueMap = ObjectToMapConverter.convertObjectToMap(value);
-                String pk = metricConfig.getConfigName() + "_" + valueMap
-                        .get(metricConfig.getKey())
-                        .toString();
-                out.collect(new MetricEvent(
-                        pk,
-                        value.timestamp,
-                        value.amount,
-                        metricConfig.getConfigName(),
-                        valueMap.get(metricConfig.getObject()).toString()));
-            }
-        });
+        DataStream<MetricEvent> metricEventDataStream = transactionStream
+                .flatMap((FlatMapFunction<OriginEvent, MetricEvent>) (value, out) -> {
+                    //动态加载配置
+                    List<MetricConfig> metricConfigCache = MetricConfigRepository.getLastedConfig();
+                    for (MetricConfig metricConfig : metricConfigCache) {
+                        Map<String, Object> valueMap = ObjectToMapConverter.convertObjectToMap(value);
+                        String pk = valueMap.get(metricConfig.getKey()).toString();
+                        out.collect(new MetricEvent(
+                                pk,
+                                value.timestamp,
+                                value.amount,
+                                metricConfig.getConfigName(),
+                                valueMap.get(metricConfig.getObject()).toString()));
+                    }
+                })
+                .returns(TypeInformation.of(new TypeHint<MetricEvent>() {
+                }));
 
         // 广播指标配置
         MapStateDescriptor<String, String> configDescriptor = new MapStateDescriptor<>(
@@ -66,14 +96,22 @@ public class DynamicTransactionMetrics {
                 .print();
 
         env.execute("Dynamic Transaction Metrics");
+        Thread.sleep(30 * 60 * 1000* 1000);
     }
 
     public static class OriginEvent {
-        private String userId;
-        private String deviceId;
-        private String ip;
-        private long timestamp; // 交易时间戳
-        private double amount; // 交易金额
+        public String userId;
+        public String deviceId;
+        public String ip;
+        public long timestamp; // 交易时间戳
+        public double amount; // 交易金额
+
+        public OriginEvent(String userId, String deviceId, long timestamp, double amount) {
+            this.userId = userId;
+            this.deviceId = deviceId;
+            this.timestamp = timestamp;
+            this.amount = amount;
+        }
 
         public String getUserId() {
             return userId;
@@ -100,12 +138,12 @@ public class DynamicTransactionMetrics {
 
     // 用户交易事件类
     public static class MetricEvent {
-        private final String primaryKey; // 用户ID
-        private final long timestamp; // 交易时间戳
-        private final double amount; // 交易金额
-        private String metricName;
+        public final String primaryKey; // 用户ID
+        public final long timestamp; // 交易时间戳
+        public final double amount; // 交易金额
+        public String metricName;
         //客体
-        private String object;
+        public String object;
 
         public MetricEvent(
                 String userId,
@@ -143,13 +181,13 @@ public class DynamicTransactionMetrics {
 
     // 指标配置类  最多保留300个时间切片
     public static class MetricConfig {
-        private final String configName;
-        private final String key; // 用于keyBy的字段（"userId"或"deviceId"）
-        private final long windowSize; // 窗口切片大小（秒/分钟/小时/天）
-        private final long windowLength; // 累计窗口长度
-        private final String windowType; //窗口类型   本(当前滚动时间窗口对应的）/近（精确）
-        private final String object;  //客体字段
-        private final String calcType;
+        public final String configName;
+        public final String key; // 用于keyBy的字段（"userId"或"deviceId"）
+        public final long windowSize; // 窗口切片大小（秒/分钟/小时/天）
+        public final long windowLength; // 累计窗口长度
+        public final String windowType; //窗口类型   本(当前滚动时间窗口对应的）/近（精确）
+        public final String object;  //客体字段
+        public final String calcType;
 
         public MetricConfig(
                 String configName,
@@ -202,7 +240,7 @@ public class DynamicTransactionMetrics {
         //滑动窗口数据
         private MapState<String, List<MetricEvent>> slidingWindowData;
 
-        private long windowSize; // 窗口大小，最小切片单位
+//        private long windowSize; // 窗口大小，最小切片单位
 
         private transient Jedis jedis; // Redis 客户端
 
@@ -232,7 +270,7 @@ public class DynamicTransactionMetrics {
             );
 
             // 初始化 Redis 连接
-            jedis = new Jedis("localhost", 6379); // 根据实际配置修改
+//            jedis = new Jedis("localhost", 6379); // 根据实际配置修改
 
         }
 
@@ -242,7 +280,10 @@ public class DynamicTransactionMetrics {
                 KeyedBroadcastProcessFunction<String, MetricEvent, String, String>.ReadOnlyContext ctx,
                 Collector<String> out) throws Exception {
             String currentConfig = ctx.getBroadcastState(configDescriptor).get("metricConfig");
-            List<MetricConfig> metricConfigs = JSONObject.parseObject(currentConfig, List.class);
+            List<MetricConfig> metricConfigs = JSONObject.parseObject(
+                    currentConfig,
+                    new TypeReference<List<MetricConfig>>() {
+                    });
             MetricConfig config = null;
 
             //TODO 优化
@@ -252,11 +293,11 @@ public class DynamicTransactionMetrics {
                     break;
                 }
             }
-            windowSize = config.getWindowSize();
+            long windowSize = config.getWindowSize();
             long currentTime = event.getTimestamp();
             // 计算当前时间所属的窗口序号
             long windowKey = calcWindowKey(currentTime, windowSize); // 窗口起始时间
-            String key = config.getConfigName() + event.getPrimaryKey() + windowKey;
+            String key = config.getConfigName() +"_"+ event.getPrimaryKey() + "_" + windowKey;
             try {
                 if (config.getCalcType().equals("COUNT DISTINCT")) {
                     // 跟踪 unique object 的个数
@@ -266,16 +307,25 @@ public class DynamicTransactionMetrics {
                     countDistinctMap.put(key, objects);
                     // 计算 unique object 的数量
                     long uniqueCount = objects.size();
-                    // 存储到 Redis
-                    jedis.set(key, String.valueOf(uniqueCount));
-                    jedis.set(key+"_events",objects.toString());
+//                    // 存储到 Redis
+//                    jedis.set(key, String.valueOf(uniqueCount));
+//                    jedis.set(key + "_events", objects.toString());
+                    System.out.println("key=" + String.valueOf(uniqueCount));
                 } else if (config.getCalcType().equals("SUM")) {
                     // 更新累计值，以 (key, windowKey) 组合为状态键 可以考虑使用一个乐观锁
-                    cumulativeValues.put(key, cumulativeValues.get(key) + event.getAmount());
+                    if(cumulativeValues.get(key) == null) {
+                        cumulativeValues.put(key, event.getAmount());
+                    }else {
+                        cumulativeValues.put(key, cumulativeValues.get(key) + event.getAmount());
+                    }
                     // 输出当前累计值
                     // 存储到 Redis
-                    jedis.set(key, String.valueOf(cumulativeValues.get(key)));
-                    out.collect("Key: " + key + ", Window Start: " + windowKey + ", Cumulative Value: "
+//                    jedis.set(key, String.valueOf(cumulativeValues.get(key)));
+                    System.out.println(
+                            "Key: " + key + ", Window Start: " + windowKey + ", Cumulative Value: "
+                                    + cumulativeValues.get(key));
+                    out.collect(
+                            "Key: " + key + ", Window Start: " + windowKey + ", Cumulative Value: "
                                     + cumulativeValues.get(key));
                 }
             } catch (Exception e) {
@@ -305,7 +355,7 @@ public class DynamicTransactionMetrics {
             MetricConfigRepository.updateCache(newConfig);
         }
 
-        private void cleanUpWindowData(List<MetricEvent> windowData, long currentTime) {
+        private void cleanUpWindowData(List<MetricEvent> windowData, long currentTime, int windowSize) {
             // 只需检查列表的第一个元素
             while (!windowData.isEmpty()
                     && (currentTime - windowData.get(0).getTimestamp()) > windowSize) {

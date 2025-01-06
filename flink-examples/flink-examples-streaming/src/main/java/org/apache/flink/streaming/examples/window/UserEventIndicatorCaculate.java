@@ -1,5 +1,8 @@
 package org.apache.flink.streaming.examples.window;
 
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -9,45 +12,58 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
+import java.time.Duration;
 
 public class UserEventIndicatorCaculate {
-    
+
     public static void main(String[] args) throws Exception {
         // 创建 Flink 执行环境
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
         // 模拟输入数据流（交易事件，有用户ID、金额和时间戳）
         DataStream<Transaction> transactionStream = env.fromElements(
-            new Transaction("user1", 100, System.currentTimeMillis()),
-            new Transaction("user1", 150, System.currentTimeMillis() + 2000),
-            new Transaction("user2", 200, System.currentTimeMillis() + 4000),
-            new Transaction("user1", 250, System.currentTimeMillis() + 6000),
-            new Transaction("user2", 300, System.currentTimeMillis() + 8000),
-            new Transaction("user3", 150, System.currentTimeMillis() + 10000),
-            new Transaction("user1", 300, System.currentTimeMillis() + 12000)
-        );
+                new Transaction("user1", 100, System.currentTimeMillis()),
+                new Transaction("user1", 150, System.currentTimeMillis() + 2000),
+                new Transaction("user2", 200, System.currentTimeMillis() + 4000),
+                new Transaction("user1", 250, System.currentTimeMillis() + 6000),
+                new Transaction("user2", 300, System.currentTimeMillis() + 8000),
+                new Transaction("user3", 150, System.currentTimeMillis() + 10000),
+                new Transaction("user1", 300, System.currentTimeMillis() + 12000),
+                new Transaction("user1", 300, System.currentTimeMillis() + 15000),
+                new Transaction("user1", 300, System.currentTimeMillis() + 18000),
+                new Transaction("user1", 300, System.currentTimeMillis() + 20000),
+                new Transaction("user1", 300, System.currentTimeMillis() + 25000)
+                );
 
-		env.setParallelism(1);
+        env.setParallelism(1);
         // 应用时间窗口并定义用户总额的聚合
-        transactionStream
-            .keyBy(transaction -> transaction.getUserId()) // 按照用户ID分组
-			.timeWindow(Time.seconds(5)) // 创建一个5分钟的窗口
-            .aggregate(new SumAggregate(), new WindowResult()) // 自定义聚合和窗口处理
-            .print(); // 输出结果
 
-		System.out.println("MultiElementWindowExample");
+        // 创建并应用水印策略
+        WatermarkStrategy<Transaction> watermarkStrategy = WatermarkStrategy
+                .<Transaction>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                .withTimestampAssigner((event, timestamp) -> event.timestamp);
+
+        transactionStream
+                .assignTimestampsAndWatermarks(watermarkStrategy)
+                .keyBy(transaction -> transaction.getUserId()) // 按照用户ID分组
+                .timeWindow(Time.seconds(5)) // 创建一个5分钟的窗口
+                .aggregate(new SumAggregate(), new WindowResult()) // 自定义聚合和窗口处理
+                .print(); // 输出结果
+
+        System.out.println("MultiElementWindowExample");
         // 启动 Flink 应用
         env.execute("Multi-element Window Example");
-		Thread.sleep(100000);
+        Thread.sleep(1000000);
     }
 
     // 定义交易事件类
     public static class Transaction implements Serializable {
         public String userId;
-		public double amount;
-		public long timestamp;
+        public double amount;
+        public long timestamp;
 
-		public Transaction(){}
+        public Transaction() {
+        }
 
         public Transaction(String userId, double amount, long timestamp) {
             this.userId = userId;
@@ -94,12 +110,20 @@ public class UserEventIndicatorCaculate {
     // 自定义窗口处理函数：输出窗口结果
     public static class WindowResult extends ProcessWindowFunction<Double, String, String, TimeWindow> {
         @Override
-        public void process(String key, Context context, Iterable<Double> elements, Collector<String> out) {
+        public void process(
+                String key,
+                Context context,
+                Iterable<Double> elements,
+                Collector<String> out) {
             double sum = 0.0;
             // 计算窗口内的总金额
+
+            System.out.println("----ProcessWindowFunction---" + key + " " + context.window().getEnd());
             for (Double element : elements) {
                 sum += element; // 累加所有用户ID的交易总金额
+                System.out.println("----ProcessWindowFunction for---" + key + " " + context.window().getEnd());
             }
+
 
 
             long windowEnd = context.window().getEnd(); // 获取窗口结束时间
