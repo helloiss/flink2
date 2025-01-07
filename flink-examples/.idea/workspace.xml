@@ -7,7 +7,6 @@
     <list default="true" id="1d4a839f-3fd4-4680-8371-e62dc1529480" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/DynamicTransactionMetrics.java" beforeDir="false" afterPath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/DynamicTransactionMetrics.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/TestWindow.java" beforeDir="false" afterPath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/TestWindow.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -145,7 +144,7 @@
       <option name="presentableId" value="Default" />
       <updated>1735883267274</updated>
       <workItem from="1735883268377" duration="757000" />
-      <workItem from="1735884034950" duration="41688000" />
+      <workItem from="1735884034950" duration="49531000" />
     </task>
     <servers />
   </component>

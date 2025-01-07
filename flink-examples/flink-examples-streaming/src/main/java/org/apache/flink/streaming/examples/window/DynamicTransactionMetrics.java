@@ -97,7 +97,7 @@ public class DynamicTransactionMetrics {
                 .print();
 
         env.execute("Dynamic Transaction Metrics");
-        Thread.sleep(30 * 60 * 1000* 1000);
+        Thread.sleep(30 * 60 * 1000 * 1000);
     }
 
     public static class OriginEvent {
@@ -298,9 +298,9 @@ public class DynamicTransactionMetrics {
             long currentTime = event.getTimestamp();
             // 计算当前时间所属的窗口序号
 
-            long windowStart =TimeWindow.getWindowStartWithOffset(currentTime,0L, windowSize);
+            long windowStart = TimeWindow.getWindowStartWithOffset(currentTime, 0L, windowSize);
             long windowKey = windowStart; // 窗口起始时间
-            String key = config.getConfigName() +"_"+ event.getPrimaryKey() + "_" + windowKey;
+            String key = config.getConfigName() + "_" + event.getPrimaryKey() + "_" + windowKey;
             try {
                 if (config.getCalcType().equals("COUNT DISTINCT")) {
                     // 跟踪 unique object 的个数
@@ -310,7 +310,8 @@ public class DynamicTransactionMetrics {
                     countDistinctMap.put(key, objects);
                     // 计算 unique object 的数量
                     long uniqueCount = objects.size();
-                    out.collect("Key: " + key + ", Window Start: " + windowKey + ", uniqueCount: " + uniqueCount);
+                    out.collect("Key: " + key + ", Window Start: " + windowKey + ", uniqueCount: "
+                            + uniqueCount);
 
 //                    // 存储到 Redis
 //                    jedis.set(key, String.valueOf(uniqueCount));
@@ -318,14 +319,22 @@ public class DynamicTransactionMetrics {
                     System.out.println("key=" + String.valueOf(uniqueCount));
                 } else if (config.getCalcType().equals("SUM")) {
                     // 更新累计值，以 (key, windowKey) 组合为状态键 可以考虑使用一个乐观锁
-                    if(cumulativeValues.get(key) == null) {
+                    if (cumulativeValues.get(key) == null) {
                         cumulativeValues.put(key, event.getAmount());
-                    }else {
+                    } else {
                         cumulativeValues.put(key, cumulativeValues.get(key) + event.getAmount());
                     }
                     // 输出当前累计值
                     // 存储到 Redis
-//                    jedis.set(key, String.valueOf(cumulativeValues.get(key)));
+//                   jedis.set(key, String.valueOf(cumulativeValues.get(key)));
+                    //使用redis保留每个窗口的值，相同指标，相同key的不通窗口数据保存在zset中，查询的时候根据窗口长度读取相应窗口的数据做累加求和
+
+                    String redisKey = config.getConfigName() + "_" + event.getPrimaryKey();
+                    jedis.zadd(
+                            redisKey.getBytes(),
+                            (double) windowStart,
+                            String.valueOf(cumulativeValues.get(key)).getBytes());
+
                     System.out.println(
                             "Key: " + key + ", Window Start: " + windowKey + ", Cumulative Value: "
                                     + cumulativeValues.get(key));
@@ -360,7 +369,10 @@ public class DynamicTransactionMetrics {
             MetricConfigRepository.updateCache(newConfig);
         }
 
-        private void cleanUpWindowData(List<MetricEvent> windowData, long currentTime, int windowSize) {
+        private void cleanUpWindowData(
+                List<MetricEvent> windowData,
+                long currentTime,
+                int windowSize) {
             // 只需检查列表的第一个元素
             while (!windowData.isEmpty()
                     && (currentTime - windowData.get(0).getTimestamp()) > windowSize) {
