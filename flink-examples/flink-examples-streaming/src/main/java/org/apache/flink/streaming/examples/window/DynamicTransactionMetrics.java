@@ -13,6 +13,7 @@ import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 import com.alibaba.fastjson2.JSONObject;
@@ -35,7 +36,7 @@ public class DynamicTransactionMetrics {
         MetricConfig config = new MetricConfig(
                 "test",
                 "userId",
-                5000l,
+                10000l,
                 "amount",
                 "SUM",
                 "RECENT",
@@ -296,17 +297,21 @@ public class DynamicTransactionMetrics {
             long windowSize = config.getWindowSize();
             long currentTime = event.getTimestamp();
             // 计算当前时间所属的窗口序号
-            long windowKey = calcWindowKey(currentTime, windowSize); // 窗口起始时间
+
+            long windowStart =TimeWindow.getWindowStartWithOffset(currentTime,0L, windowSize);
+            long windowKey = windowStart; // 窗口起始时间
             String key = config.getConfigName() +"_"+ event.getPrimaryKey() + "_" + windowKey;
             try {
                 if (config.getCalcType().equals("COUNT DISTINCT")) {
                     // 跟踪 unique object 的个数
                     HashSet<String> objects = countDistinctMap.get(event.getPrimaryKey());
                     if (objects == null) objects = new HashSet<>();
-                    objects.add(event.getObject()); // 添加当前 object
+                    objects.add(event.getObject()); // 添加当前count客体 object
                     countDistinctMap.put(key, objects);
                     // 计算 unique object 的数量
                     long uniqueCount = objects.size();
+                    out.collect("Key: " + key + ", Window Start: " + windowKey + ", uniqueCount: " + uniqueCount);
+
 //                    // 存储到 Redis
 //                    jedis.set(key, String.valueOf(uniqueCount));
 //                    jedis.set(key + "_events", objects.toString());
