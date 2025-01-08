@@ -5,7 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1d4a839f-3fd4-4680-8371-e62dc1529480" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/FilterEvaluate.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/MvelCustomOperatorExample.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/flink-examples-streaming/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/flink-examples-streaming/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/DynamicTransactionMetrics.java" beforeDir="false" afterPath="$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/DynamicTransactionMetrics.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -55,7 +58,7 @@
       <recent name="$PROJECT_DIR$/flink-examples-streaming/src/main/java" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.TestWindow">
+  <component name="RunManager" selected="Application.DynamicTransactionMetrics">
     <configuration name="DynamicTransactionMetrics" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="org.apache.flink.streaming.examples.window.DynamicTransactionMetrics" />
       <module name="flink-examples-streaming" />
@@ -119,8 +122,8 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.TestWindow" />
         <item itemvalue="Application.DynamicTransactionMetrics" />
+        <item itemvalue="Application.TestWindow" />
         <item itemvalue="Application.UserEventIndicatorCaculate" />
         <item itemvalue="Application.UserEventIndicatorCaculate" />
         <item itemvalue="Application.DynamicTransactionMetrics" />
@@ -144,7 +147,7 @@
       <option name="presentableId" value="Default" />
       <updated>1735883267274</updated>
       <workItem from="1735883268377" duration="757000" />
-      <workItem from="1735884034950" duration="49531000" />
+      <workItem from="1735884034950" duration="74205000" />
     </task>
     <servers />
   </component>
@@ -173,11 +176,6 @@
           <url>file://$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/UserEventIndicatorCaculate.java</url>
           <line>100</line>
           <option name="timeStamp" value="5" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/window/DynamicTransactionMetrics.java</url>
-          <line>283</line>
-          <option name="timeStamp" value="11" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>jar://$USER_HOME$/.ideaLibSources/flink-table-runtime-1.19.0-sources.jar!/org/apache/flink/table/runtime/operators/window/groupwindow/assigners/TumblingWindowAssigner.java</url>
